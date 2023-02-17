@@ -120,4 +120,72 @@ jobs:
           name: calculator-docu
           path: ./docu
 
+  gradle-initialisieren:
+    runs-on: ubuntu-latest
 
+    steps:
+      - name: Checkout Repository Content
+        uses: actions/chackout@v2
+        
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v2
+        
+      - name: change acl
+        run: |
+          chmod +x /gradlew
+          ./gradlew test
+        working-directory: .src/calculator/
+      
+      - name: Upload Test Report
+        uses: actions/upload-artifact@v2
+        with:
+          name: calculator-test
+          path: ./src/calculator/build/reports/tests/test/
+          
+  update-gh-pages:
+    name: ghpages
+    runs-on: ubuntu-latest
+    needs: [calculator-docu, calculator-test, bundle]
+    steps:
+      - name: Checkout Repository Content
+        uses: actions/checkout@v2
+        with:
+          ref: gh-pages
+          path: ./gh-pages
+          
+      - name: Download Docu
+        uses: actions/download-artifact@v2
+        with:
+          name: calculator-docu
+          path: ./docu
+
+      - name: Download Test
+        uses: actions/download-artifact@v2
+        with:
+          name: calculator-test
+          path: ./tests
+          
+      - name: Download Bundle
+        uses: actions/download-artifact@v2
+        with:
+          name: bundle
+          path: ./download
+          
+      - name: Update GitHub Pages
+        run: |
+          rm -rdf ./gh-pages/docu
+          rm -rdf ./gh-pages/tests
+          rm -rdf ./gh-pages/download
+          cp -r ./docu ./gh-pages
+          cp -r ./tests ./gh-pages
+          cp -r ./download ./gh-pages
+          
+      - name: Update Repo
+        run: |
+          git config --global user.name 'GH-Pages pusher'
+          git config --global user.email "gh-pusher@local"
+          git add -A
+          git commit -m 'Add test results for ${{ github.sha }}'
+          git push
+          
+        working-directory: ./gh-pages
